@@ -1,96 +1,18 @@
-# Open R1
 
-*A fully open reproduction of DeepSeek-R1. This repo is a work in progress, let's build it together!*
+## Setup
 
-**Table of Contents**  
-1. [Overview](#overview)  
-2. [Plan of attack](#plan-of-attack)  
-3. [Installation](#installation)  
-4. [Training models](#training-models)  
-   - [SFT](#sft)  
-   - [GRPO](#grpo)  
-5. [Evaluating models](#evaluating-models)  
-6. [Reproducing Deepseek's evaluation results](#reproducing-deepseeks-evaluation-results)  
-7. [Data generation](#data-generation)  
-   - [Generate data from a smol distilled R1 model](#generate-data-from-a-smol-distilled-r1-model)  
-   - [Generate data from DeepSeek-R1](#generate-data-from-deepseek-r1)  
-8. [Contributing](#contributing)
-
-## Overview
-
-The goal of this repo is to build the missing pieces of the R1 pipeline such that everybody can reproduce and build on top of it. The project is simple by design and mostly consists of:
-
-
-- `src/open_r1`: contains the scripts to train and evaluate models as well as generate synthetic data:
-    - `grpo.py`: trains a model with GRPO on a given dataset.
-    - `sft.py`: performs a simple SFT of a model on a dataset.
-    - `evaluate.py`: evaluates a model on the R1 benchmarks.
-    - `generate.py`: generates synthetic data from a model using [Distilabel](https://github.com/argilla-io/distilabel).
-- `Makefile`: contains easy-to-run commands for each step in the R1 pipeline leveraging the scripts above.
-
-### Plan of attack
-
-We will use the DeepSeek-R1 [tech report](https://github.com/deepseek-ai/DeepSeek-R1) as a guide, which can roughly be broken down into three main steps:
-
-* Step 1: replicate the R1-Distill models by distilling a high-quality corpus from DeepSeek-R1.
-* Step 2: replicate the pure RL pipeline that DeepSeek used to create R1-Zero. This will likely involve curating new, large-scale datasets for math, reasoning, and code.
-* Step 3: show we can go from base model to RL-tuned via multi-stage training.
-
-<center>
-    <img src="assets/plan-of-attack.png" width="500">
-</center>
-
-
-## Installation
-
-> [!CAUTION]
-> Libraries rely on CUDA 12.4. If you see errors related to segmentation faults, double check the version your system is running with `nvcc --version`.
-
-To run the code in this project, first, create a Python virtual environment using e.g. `uv`.
-To install `uv`, follow the [UV Installation Guide](https://docs.astral.sh/uv/getting-started/installation/).
-
-
-> [!NOTE]
-> As a shortcut, run `make install` to setup development libraries (spelled out below). Afterwards, if everything is setup correctly you can try out the Open-R1 models.
-
+```shell
+docker build --no-cache -t aropenr1 .
+docker run -v $(pwd):/app -v /work/bmb/hf_models:/work/bmb/hf_models --shm-size=1024g --gpus all --name AROPENR1 -it aropenr1
+```
 
 ```shell
 uv venv openr1 --python 3.11 && source openr1/bin/activate && uv pip install --upgrade pip
-```
-
-> [!TIP]
-> For Hugging Face cluster users, add `export UV_LINK_MODE=copy` to your `.bashrc` to suppress cache warnings from `uv`
-
-Next, install vLLM and FlashAttention:
-
-```shell
 uv pip install vllm==0.7.2
 uv pip install setuptools && uv pip install flash-attn --no-build-isolation
-```
-
-This will also install PyTorch `v2.5.1` and it is **very important** to use this version since the vLLM binaries are compiled for it. You can then install the remaining dependencies for your specific use case via `pip install -e .[LIST OF MODES]`. For most contributors, we recommend:
-
-```shell
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e ".[dev]"
-```
-
-Next, log into your Hugging Face and Weights and Biases accounts as follows:
-
-```shell
 huggingface-cli login
 wandb login
-```
-
-Finally, check whether your system has Git LFS installed so that you can load and push models/datasets to the Hugging Face Hub:
-
-```shell
-git-lfs --version
-```
-
-If it isn't installed, run:
-
-```shell
-sudo apt-get install git-lfs
 ```
 
 ## Training models
@@ -245,26 +167,6 @@ options:
   --new_dataset_name NEW_DATASET_NAME
                         New name for the dataset. If not provided, will reuse the name and add a `_decontaminated` to the name.
 ```
-
-### Launching jobs on a Slurm cluster
-
-If you have access to a Slurm cluster, we provide a `slurm/train.slurm` script that will automatically queue training jobs for you. Here's how you can use it:
-
-```shell
-sbatch --job-name=open_r1 --nodes=1 slurm/train.slurm {model_name} {task} {config_suffix} {accelerator}
-```
-
-Here `{model_name}` and `{task}` are defined as above, while `{config_suffix}` refers to the specific config and `{accelerator}` refers to the choice of 🤗 Accelerate config in `recipes/accelerate_configs`. If you wish to override the default config parameters, you can provide them by appending a space-separated string like `'--arg1=value1 --arg2=value2'`. Here's a concrete example to run SFT on 1 node of 8 GPUs:
-
-```shell
-# Launch on Slurm and override default hyperparameters
-sbatch --job-name=open_r1 --nodes=1 slurm/train.slurm Qwen2.5-1.5B-Instruct sft demo zero3 '--per_device_train_batch_size=1 --num_train_epochs=5'
-```
-
-You can scale the number of nodes by increasing the `--nodes` flag.
-
-> [!NOTE]
-> The configuration in `slurm/train.slurm` is optimised for the Hugging Face Compute Cluster and may require tweaking to be adapted to your own compute nodes.
 
 ## Evaluating models
 
@@ -549,50 +451,3 @@ if __name__ == "__main__":
 
 Take a look at the sample dataset at [HuggingFaceH4/numina-deepseek-r1-qwen-7b](https://huggingface.co/datasets/HuggingFaceH4/numina-deepseek-r1-qwen-7b).
 
-
-### Generate data from DeepSeek-R1
-
-To run the bigger DeepSeek-R1, we used 2 nodes, each with 8×H100 GPUs using the slurm file present in this repo at `slurm/generate.slurm`. First, install the dependencies:
-
-(for now we need to install the vllm dev wheel that [fixes the R1 cuda graph capture](https://github.com/vllm-project/vllm/commits/221d388cc5a836fa189305785ed7e887cea8b510/csrc/moe/moe_align_sum_kernels.cu))
-```shell
-pip install https://wheels.vllm.ai/221d388cc5a836fa189305785ed7e887cea8b510/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl --extra-index-url https://download.pytorch.org/whl/cu121
-
-uv pip install "distilabel[vllm,ray,openai]>=1.5.2"
-```
-
-And then run the following command:
-
-```shell
-sbatch slurm/generate.slurm \
-    --hf-dataset AI-MO/NuminaMath-TIR \
-    --temperature 0.6 \
-    --prompt-column problem \
-    --model deepseek-ai/DeepSeek-R1 \
-    --hf-output-dataset username/r1-dataset
-```
-
-> [!NOTE]  
-> While the job is running, you can setup an SSH tunnel through the cluster login node to access the Ray dashboard from your computer running `ssh -L 8265:ray_ip_head_node:8265 <login_node>`, then browsing `http://localhost:8265`
-
-## Contributing
-
-Contributions are welcome. Please refer to https://github.com/huggingface/open-r1/issues/23.
-
-## Acknowledgements
-
-This project is built with the collective efforts of many groups and individuals in the open AI community. We are especially grateful to the vLLM and SGLang teams for creating high-performance tooling to scale the rollouts of GRPO. We also thank the teams at [OpenThoughts](https://www.open-thoughts.ai), [Prime Intellect](https://www.primeintellect.ai), and [General Reasoning](https://gr.inc) for creating and sharing high-quality datasets for reasoning.
-
-## Citation
-
-If you find this project is useful in your own work, please consider citing as follows:
-
-```
-@misc{openr1,
-    title = {Open R1: A fully open reproduction of DeepSeek-R1},
-    url = {https://github.com/huggingface/open-r1},
-    author = {Hugging Face},
-    month = {January},
-    year = {2025}
-}
-```
