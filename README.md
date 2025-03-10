@@ -1,11 +1,25 @@
 
 ## Setup
-
+### Build the docker environment
+There are two ways to build the docker environment.
+#### 1. Build the docker environment with the following command
 ```shell
 docker build --no-cache -t aropenr1 .
 docker run -v $(pwd):/app -v /work/bmb/hf_models:/work/bmb/hf_models --shm-size=1024g --gpus all --name AROPENR1 -it aropenr1
 ```
+#### 2. Build the container with `compose.yml`, and then enter the container with vscode
+```shell
+cp .env.example .env
+```
+After editting `.env`, run:
 
+```shell
+docker compose up -d --build
+```
+Finally you can enter the running container via vscode.
+For more details, see [link](https://qiita.com/nonamenme/items/43243586c81cbbb9b08b#2-%E3%82%B3%E3%83%B3%E3%83%86%E3%83%8A%E3%81%B8%E3%82%A2%E3%82%BF%E3%83%83%E3%83%81 ).
+
+### After entering the container
 ```shell
 uv venv openr1 --python 3.11 && source openr1/bin/activate && uv pip install --upgrade pip
 uv pip install vllm==0.7.2
