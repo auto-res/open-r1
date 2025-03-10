@@ -55,7 +55,10 @@ latex_gold_metric = multilingual_extractive_match_metric(
     precision=5,
     gold_extraction_target=(LatexExtractionConfig(),),
     # Match boxed first before trying other regexes
-    pred_extraction_target=(ExprExtractionConfig(), LatexExtractionConfig(boxed_match_priority=0)),
+    pred_extraction_target=(
+        ExprExtractionConfig(),
+        LatexExtractionConfig(boxed_match_priority=0),
+    ),
     aggregation_function=max,
 )
 
@@ -65,14 +68,21 @@ expr_gold_metric = multilingual_extractive_match_metric(
     precision=5,
     gold_extraction_target=(ExprExtractionConfig(),),
     # Match boxed first before trying other regexes
-    pred_extraction_target=(ExprExtractionConfig(), LatexExtractionConfig(boxed_match_priority=0)),
+    pred_extraction_target=(
+        ExprExtractionConfig(),
+        LatexExtractionConfig(boxed_match_priority=0),
+    ),
     aggregation_function=max,
 )
 
 gpqa_metric = multilingual_extractive_match_metric(
     language=Language.ENGLISH,
-    gold_extraction_target=[IndicesExtractionConfig(prefix_for_extraction="NativeLetters")],
-    pred_extraction_target=[IndicesExtractionConfig(prefix_for_extraction="NativeLetters")],
+    gold_extraction_target=[
+        IndicesExtractionConfig(prefix_for_extraction="NativeLetters")
+    ],
+    pred_extraction_target=[
+        IndicesExtractionConfig(prefix_for_extraction="NativeLetters")
+    ],
     precision=5,
 )
 
@@ -97,10 +107,18 @@ def aime_prompt_fn(line, task_name: str = None):
 
 def gpqa_prompt_fn(line, task_name: str = None):
     gold_index = random.randint(0, 3)
-    choices = [line["Incorrect Answer 1"], line["Incorrect Answer 2"], line["Incorrect Answer 3"]]
+    choices = [
+        line["Incorrect Answer 1"],
+        line["Incorrect Answer 2"],
+        line["Incorrect Answer 3"],
+    ]
     choices.insert(gold_index, line["Correct Answer"])
     query = GPQA_QUERY_TEMPLATE.format(
-        A=choices[0], B=choices[1], C=choices[2], D=choices[3], Question=line["Question"]
+        A=choices[0],
+        B=choices[1],
+        C=choices[2],
+        D=choices[3],
+        Question=line["Question"],
     )
     return Doc(
         task_name=task_name,

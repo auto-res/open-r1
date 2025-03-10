@@ -9,7 +9,9 @@ DEFAULT_CHAT_TEMPLATE = "{% for message in messages %}\n{% if message['role'] ==
 
 
 def get_tokenizer(
-    model_args: ModelConfig, training_args: SFTConfig | GRPOConfig, auto_set_chat_template: bool = True
+    model_args: ModelConfig,
+    training_args: SFTConfig | GRPOConfig,
+    auto_set_chat_template: bool = True,
 ) -> PreTrainedTokenizer:
     """Get the tokenizer for the model."""
     tokenizer = AutoTokenizer.from_pretrained(
