@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  aropenr1:
+    build:
+      context: .
+    container_name: ${AROPENR1}
+    volumes:
+      - .:/app
+      - /work/bmb/hf_models:/work/bmb/hf_models
+    shm_size: "1024g"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    tty: true
+    stdin_open: true
