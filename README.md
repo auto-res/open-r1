@@ -29,6 +29,11 @@ huggingface-cli login
 wandb login
 ```
 
+## Develop reward functions
+Add your functions to `src/open_r1/rewards.py`.
+If you afford to add a test, add it to `tests/test_rewards.py`.
+Edit `REWARD_FUNCS_REGISTRY` in `src/open_r1/grpo.py` to register your function.
+
 ## Training models
 
 We support training models with either DDP or DeepSpeed (ZeRO-2 and ZeRO-3). For example, to run SFT on a dataset distilled from DeepSeek-R1 with reasoning traces such as [open-r1/OpenR1-Math-220k](https://huggingface.co/datasets/open-r1/OpenR1-Math-220k), run:
