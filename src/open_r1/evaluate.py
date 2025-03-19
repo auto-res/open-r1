@@ -77,12 +77,8 @@ expr_gold_metric = multilingual_extractive_match_metric(
 
 gpqa_metric = multilingual_extractive_match_metric(
     language=Language.ENGLISH,
-    gold_extraction_target=[
-        IndicesExtractionConfig(prefix_for_extraction="NativeLetters")
-    ],
-    pred_extraction_target=[
-        IndicesExtractionConfig(prefix_for_extraction="NativeLetters")
-    ],
+    gold_extraction_target=[IndicesExtractionConfig(prefix_for_extraction="NativeLetters")],
+    pred_extraction_target=[IndicesExtractionConfig(prefix_for_extraction="NativeLetters")],
     precision=5,
 )
 

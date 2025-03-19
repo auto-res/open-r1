@@ -2,8 +2,10 @@
 
 import asyncio
 import json
+import logging
 import math
 import re
+import subprocess
 from typing import Dict
 
 from latex2sympy2_extended import NormalizationConfig
@@ -54,9 +56,7 @@ def accuracy_reward(completions, solution, **kwargs):
             try:
                 reward = float(verify(answer_parsed, gold_parsed))
             except Exception as e:
-                print(
-                    f"verify failed: {e}, answer: {answer_parsed}, gold: {gold_parsed}"
-                )
+                print(f"verify failed: {e}, answer: {answer_parsed}, gold: {gold_parsed}")
                 reward = 0.0
         else:
             # If the gold solution is not parseable, we reward 1 to skip this example
@@ -71,10 +71,7 @@ def format_reward(completions, **kwargs):
     """Reward function that checks if the reasoning process is enclosed within <think> and </think> tags, while the final answer is enclosed within <answer> and </answer> tags."""
     pattern = r"^<think>\n.*?\n</think>\n<answer>\n.*?\n</answer>$"
     completion_contents = [completion[0]["content"] for completion in completions]
-    matches = [
-        re.match(pattern, content, re.DOTALL | re.MULTILINE)
-        for content in completion_contents
-    ]
+    matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
     return [1.0 if match else 0.0 for match in matches]
 
 
@@ -117,9 +114,7 @@ def reasoning_steps_reward(completions, **kwargs):
     return [min(1.0, count / 3) for count in matches]
 
 
-def len_reward(
-    completions: list[Dict[str, str]], solution: list[str], **kwargs
-) -> float:
+def len_reward(completions: list[Dict[str, str]], solution: list[str], **kwargs) -> float:
     """Compute length-based rewards to discourage overthinking and promote token efficiency.
 
     Taken from the Kimi 1.5 tech report: https://arxiv.org/abs/2501.12599
@@ -374,14 +369,10 @@ def code_reward(completions, **kwargs) -> list[float]:
 
     evaluate_code(code_snippet, test_cases)
     """
-    code_snippets = [
-        extract_code(completion[-1]["content"]) for completion in completions
-    ]
+    code_snippets = [extract_code(completion[-1]["content"]) for completion in completions]
     verification_info = kwargs["verification_info"]
     scripts = [
-        evaluation_script_template.format(
-            code=json.dumps(code), test_cases=json.dumps(json.dumps(info["test_cases"]))
-        )
+        evaluation_script_template.format(code=json.dumps(code), test_cases=json.dumps(json.dumps(info["test_cases"])))
         for code, info in zip(code_snippets, verification_info)
     ]
     try:
@@ -394,22 +385,100 @@ def code_reward(completions, **kwargs) -> list[float]:
     return rewards
 
 
+def lean_reward(completions: list[str], prompt, **kwargs) -> list[float]:
+    """Reward function that evaluates Lean code snippets.
+    The code must contains import sentence and theorem sentence of the given prompt.
+    Moreover, the proof must be completed and end with `done`.
+    """
+    lean_codes = [_extract_lean_code(completion[0]["content"]) for completion in completions]
+    prompt_codes = [_extract_lean_code(prmt) for prmt in prompt]
+    results = []
+    for prompt_code, lean_code in zip(prompt_codes, lean_codes):
+        if prompt_code is None or lean_code is None or prompt_code not in lean_code:
+            results.append(0.0)
+            continue
+        try:
+            result = _validate_lean_code(lean_code)
+            results.append(result)
+        except ValueError:
+            results.append(0.0)
+    return results
+
+
+def _extract_lean_code(completion: str) -> str | None:
+    """Extract lean code from completion
+    Args:
+        completion (str): completion
+
+    Returns:
+        str | None: return lean code if exists, otherwise None
+    """
+    # 文字列中の```lean\nhogehoge\n```を抽出してhogehoge部分を返す
+    lean_code = completion.split("```lean")
+    if len(lean_code) < 2:
+        return None
+
+    code_parts = lean_code[1].split("```")
+    if not code_parts:
+        return None
+
+    return code_parts[0].strip()
+
+
+def _validate_lean_code(code: str) -> float:
+    """Validate lean code
+    The code must contains import sentence and theorem sentence.
+    Moreover, the proof must be completed and end with `done`.
+    Args:
+        code (str): lean code
+
+    Returns:
+        float: 1.0 if valid, 0.0 otherwise
+    """
+    with open("./tmp/Verify.lean", "w") as f:
+        f.write(code)
+
+    WORKDIR = "./repl"
+    RELATIVE_PATH_FROM_REPL = "../tmp/Verify.lean"
+    command = f'echo \'{{"path": "{RELATIVE_PATH_FROM_REPL}", "allTactics": true}}\' | ~/.elan/bin/lake exe repl'
+
+    try:
+        result = subprocess.run(
+            command, cwd=WORKDIR, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        logging.info(result)
+
+        if result.returncode != 0:
+            logging.error(f"Verification failed with return code {result.returncode}")
+            logging.error(f"Stderr: {result.stderr}")
+            return 0.0
+
+        result_json = json.loads(result.stdout)
+        if result_json["tactics"][-1]["goals"] == "no goals":
+            return 1.0
+
+        errors = list(filter(lambda x: x["severity"] == "error", result_json["messages"]))
+
+        if len(errors) == 0:
+            return 1.0
+
+        return 0.0
+    except Exception as e:
+        logging.exception(f"Error validating lean code: {e}")
+        return 0.0
+
+
 def get_code_format_reward(language: str = "python"):
     """Format reward function specifically for code responses.
 
     Args:
         language: Programming language supported by E2B https://e2b.dev/docs/code-interpreting/supported-languages
     """
-    pattern = (
-        rf"^<think>\n.*?\n</think>\n<answer>\n.*?```{language}.*?```.*?\n</answer>$"
-    )
+    pattern = rf"^<think>\n.*?\n</think>\n<answer>\n.*?```{language}.*?```.*?\n</answer>$"
 
     def code_format_reward(completions, **kwargs):
         completion_contents = [completion[0]["content"] for completion in completions]
-        matches = [
-            re.match(pattern, content, re.DOTALL | re.MULTILINE)
-            for content in completion_contents
-        ]
+        matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
         return [1.0 if match else 0.0 for match in matches]
 
     return code_format_reward

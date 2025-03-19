@@ -6,6 +6,7 @@ from open_r1.rewards import (
     get_code_format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
+    lean_reward,
     len_reward,
     reasoning_steps_reward,
     tag_count_reward,
@@ -13,6 +14,38 @@ from open_r1.rewards import (
 
 
 class TestRewards(unittest.TestCase):
+    def test_lean_reward(self):
+        completions = [
+            [
+                {
+                    "content": "The answer is: ```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n  done\n```"
+                }
+            ],
+            [
+                {
+                    "content": "Here is the answer: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  done\n```"
+                }
+            ],
+            [
+                {
+                    "content": "The answer is the following: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [fdjakfdaf]\n```"
+                }
+            ],
+            [
+                {
+                    "content": "theorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  rw [add_comm m k]\n  done\n"
+                }
+            ],
+        ]
+        prompt = [
+            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+        ]
+        rewards = lean_reward(completions, prompt)
+        self.assertEqual(rewards, [1.0, 0.0, 0.0, 0.0])
+
     def test_accuracy_reward_correct_answer(self):
         """Test accuracy_reward with a correct answer."""
         completion = [[{"content": r"\boxed{\frac{63}{400}}"}]]
@@ -31,13 +64,7 @@ class TestRewards(unittest.TestCase):
 
     def test_format_reward_correct(self):
         """Test format_reward with correct format."""
-        completion = [
-            [
-                {
-                    "content": "<think>\nSome reasoning\n</think>\n<answer>\nThe answer\n</answer>"
-                }
-            ]
-        ]
+        completion = [[{"content": "<think>\nSome reasoning\n</think>\n<answer>\nThe answer\n</answer>"}]]
         rewards = format_reward(completion)
         self.assertEqual(rewards[0], 1.0)
 
@@ -162,12 +189,8 @@ class TestRewards(unittest.TestCase):
         solutions = [r"\frac{63}{400}", r"\frac{63}{400}"]
 
         rewards = len_reward(completions, solutions)
-        self.assertGreater(
-            rewards[0], rewards[1]
-        )  # shorter answer should get higher reward
-        self.assertAlmostEqual(
-            rewards[0], 0.5
-        )  # shortest correct answer gets maximum reward
+        self.assertGreater(rewards[0], rewards[1])  # shorter answer should get higher reward
+        self.assertAlmostEqual(rewards[0], 0.5)  # shortest correct answer gets maximum reward
 
     def test_different_lengths_incorrect_answers(self):
         """Test len_reward with different length incorrect answers."""
@@ -178,13 +201,9 @@ class TestRewards(unittest.TestCase):
         solutions = [r"\frac{63}{400}", r"\frac{63}{400}"]
 
         rewards = len_reward(completions, solutions)
-        self.assertLessEqual(
-            rewards[0], 0.0
-        )  # incorrect answers should get non-positive rewards
+        self.assertLessEqual(rewards[0], 0.0)  # incorrect answers should get non-positive rewards
         self.assertLessEqual(rewards[1], 0.0)
-        self.assertGreater(
-            rewards[0], rewards[1]
-        )  # shorter answer should still be penalized less
+        self.assertGreater(rewards[0], rewards[1])  # shorter answer should still be penalized less
 
     def test_mixed_correctness(self):
         """Test len_reward with mix of correct and incorrect answers of different lengths."""
@@ -222,21 +241,15 @@ class TestRewards(unittest.TestCase):
         solutions = ["unparseable_latex", "unparseable_latex"]
 
         rewards = len_reward(completions, solutions)
-        self.assertGreater(
-            rewards[0], rewards[1]
-        )  # shorter answer should still get better reward
-        self.assertAlmostEqual(
-            rewards[0], 0.5
-        )  # treated as correct, shortest gets maximum reward
+        self.assertGreater(rewards[0], rewards[1])  # shorter answer should still get better reward
+        self.assertAlmostEqual(rewards[0], 0.5)  # treated as correct, shortest gets maximum reward
 
 
 class TestRepetitionPenaltyReward(unittest.TestCase):
     def test_positive_max_penalty_raises_value_error(self):
         with self.assertRaises(ValueError):
             get_repetition_penalty_reward(ngram_size=2, max_penalty=1.0)
-        with self.assertRaisesRegex(
-            ValueError, "max_penalty 1.5 should not be positive"
-        ):
+        with self.assertRaisesRegex(ValueError, "max_penalty 1.5 should not be positive"):
             get_repetition_penalty_reward(ngram_size=2, max_penalty=1.5)
 
     def test_no_repetition(self):
@@ -365,45 +378,31 @@ class TestRepetitionPenaltyReward(unittest.TestCase):
 
     def test_tag_count_rewards_all_correct(self):
         """Test tag_count_reward with correct tags."""
-        completion = [
-            [
-                {
-                    "content": "<think>\nSome reasoning\n</think>\n<answer>\nThe answer\n</answer>"
-                }
-            ]
-        ]
+        completion = [[{"content": "<think>\nSome reasoning\n</think>\n<answer>\nThe answer\n</answer>"}]]
         rewards = tag_count_reward(completion)
         self.assertEqual(rewards[0], 1.0)
 
     def test_tag_count_rewards_missing_think_begin(self):
         """Test tag_count_reward with missing <think> tag."""
-        completion = [
-            [{"content": "Some reasoning\n</think>\n<answer>\nThe answer\n</answer>"}]
-        ]
+        completion = [[{"content": "Some reasoning\n</think>\n<answer>\nThe answer\n</answer>"}]]
         rewards = tag_count_reward(completion)
         self.assertEqual(rewards[0], 0.75)
 
     def test_tag_count_rewards_missing_think_end(self):
         """Test tag_count_reward with missing </think> tag."""
-        completion = [
-            [{"content": "<think>\nSome reasoning\n<answer>\nThe answer\n</answer>"}]
-        ]
+        completion = [[{"content": "<think>\nSome reasoning\n<answer>\nThe answer\n</answer>"}]]
         rewards = tag_count_reward(completion)
         self.assertEqual(rewards[0], 0.75)
 
     def test_tag_count_rewards_missing_answer_begin(self):
         """Test tag_count_reward with missing <answer> tag."""
-        completion = [
-            [{"content": "<think>\nSome reasoning\n</think>\nThe answer\n</answer>"}]
-        ]
+        completion = [[{"content": "<think>\nSome reasoning\n</think>\nThe answer\n</answer>"}]]
         rewards = tag_count_reward(completion)
         self.assertEqual(rewards[0], 0.75)
 
     def test_tag_count_rewards_missing_answer_end(self):
         """Test tag_count_reward with missing </answer> tag."""
-        completion = [
-            [{"content": "<think>\nSome reasoning\n</think>\n<answer>\nThe answer"}]
-        ]
+        completion = [[{"content": "<think>\nSome reasoning\n</think>\n<answer>\nThe answer"}]]
         rewards = tag_count_reward(completion)
         self.assertEqual(rewards[0], 0.75)
 
