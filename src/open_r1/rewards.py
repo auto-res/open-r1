@@ -1,5 +1,6 @@
 """Reward functions for GRPO training."""
 
+import os
 import asyncio
 import json
 import logging
@@ -435,6 +436,9 @@ def _validate_lean_code(code: str) -> float:
     Returns:
         float: 1.0 if valid, 0.0 otherwise
     """
+    # もしディレクトリやファイルがなければ作成する
+    if os.path.exists("./tmp") is False:
+        os.makedirs("./tmp")
     with open("./tmp/Verify.lean", "w") as f:
         f.write(code)
 
