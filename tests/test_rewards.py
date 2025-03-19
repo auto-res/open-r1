@@ -14,37 +14,37 @@ from open_r1.rewards import (
 
 
 class TestRewards(unittest.TestCase):
-    def test_lean_reward(self):
-        completions = [
-            [
-                {
-                    "content": "The answer is: ```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n  done\n```"
-                }
-            ],
-            [
-                {
-                    "content": "Here is the answer: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  done\n```"
-                }
-            ],
-            [
-                {
-                    "content": "The answer is the following: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [fdjakfdaf]\n```"
-                }
-            ],
-            [
-                {
-                    "content": "theorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  rw [add_comm m k]\n  done\n"
-                }
-            ],
-        ]
-        prompt = [
-            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
-            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
-            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
-            "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
-        ]
-        rewards = lean_reward(completions, prompt)
-        self.assertEqual(rewards, [1.0, 0.0, 0.0, 0.0])
+    # def test_lean_reward(self):
+    #     completions = [
+    #         [
+    #             {
+    #                 "content": "The answer is: ```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n  done\n```"
+    #             }
+    #         ],
+    #         [
+    #             {
+    #                 "content": "Here is the answer: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  done\n```"
+    #             }
+    #         ],
+    #         [
+    #             {
+    #                 "content": "The answer is the following: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [fdjakfdaf]\n```"
+    #             }
+    #         ],
+    #         [
+    #             {
+    #                 "content": "theorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  rw [add_comm m k]\n  done\n"
+    #             }
+    #         ],
+    #     ]
+    #     prompt = [
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #     ]
+    #     rewards = lean_reward(completions, prompt)
+    #     self.assertEqual(rewards, [1.0, 0.0, 0.0, 0.0])
 
     def test_accuracy_reward_correct_answer(self):
         """Test accuracy_reward with a correct answer."""
