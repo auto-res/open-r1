@@ -1,12 +1,11 @@
 import unittest
 
-from open_r1.rewards import (
+from open_r1.rewards import (  # lean_reward,
     accuracy_reward,
     format_reward,
     get_code_format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
-    lean_reward,
     len_reward,
     reasoning_steps_reward,
     tag_count_reward,
