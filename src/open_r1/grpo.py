@@ -32,6 +32,7 @@ from open_r1.rewards import (
     get_code_format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
+    lean_reward,
     len_reward,
     reasoning_steps_reward,
     tag_count_reward,
@@ -174,6 +175,7 @@ def main(script_args, training_args, model_args):
         ),
         "length": len_reward,
         "code": code_reward,
+        "lean": lean_reward,
         "code_format": get_code_format_reward(language=script_args.code_language),
         "tag_count": tag_count_reward,
     }

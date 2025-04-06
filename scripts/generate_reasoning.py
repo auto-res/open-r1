@@ -46,7 +46,10 @@ async def process_example(example, session, args, output_file, pbar):
     prompt = args.prompt_template.format(prompt=example[args.prompt_column])
 
     try:
-        tasks = [generate_completion(session, prompt, args) for _ in range(args.num_generations)]
+        tasks = [
+            generate_completion(session, prompt, args)
+            for _ in range(args.num_generations)
+        ]
 
         completions = await asyncio.gather(*tasks)
 
@@ -95,7 +98,9 @@ async def load_processed_uuids(output_file, uuid_column):
             async for line in f:
                 try:
                     data = json.loads(line)
-                    processed_uuids.add(hashlib.md5(str(data[uuid_column]).encode()).hexdigest())
+                    processed_uuids.add(
+                        hashlib.md5(str(data[uuid_column]).encode()).hexdigest()
+                    )
                 except json.JSONDecodeError:
                     continue
     return processed_uuids
@@ -123,7 +128,9 @@ async def main():
     dataset = load_dataset(args.dataset_name, split="train").shuffle()
     processed_uuids = await load_processed_uuids(args.output_file, args.uuid_column)
     if processed_uuids:
-        print(f"Found {len(processed_uuids)} already processed examples, resuming from there...")
+        print(
+            f"Found {len(processed_uuids)} already processed examples, resuming from there..."
+        )
 
     if not os.path.exists(args.output_file):
         async with aiofiles.open(args.output_file, mode="w") as f:
@@ -142,21 +149,27 @@ async def main():
 
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=60 * 60),
-        connector=aiohttp.TCPConnector(limit=args.max_concurrent, ttl_dns_cache=300, keepalive_timeout=60 * 60),
+        connector=aiohttp.TCPConnector(
+            limit=args.max_concurrent, ttl_dns_cache=300, keepalive_timeout=60 * 60
+        ),
     ) as session:
         for example in dataset:
             uuid = hashlib.md5(str(example[args.uuid_column]).encode()).hexdigest()
             if uuid not in processed_uuids:
                 # Wait if we've hit the concurrency limit
                 while len(active_tasks) >= args.max_concurrent:
-                    done, active_tasks = await asyncio.wait(active_tasks, return_when=asyncio.FIRST_COMPLETED)
+                    done, active_tasks = await asyncio.wait(
+                        active_tasks, return_when=asyncio.FIRST_COMPLETED
+                    )
                     for task in done:
                         try:
                             await task
                         except Exception as e:
                             print(f"Task failed: {e}")
 
-                task = asyncio.create_task(process_example(example, session, args, args.output_file, pbar))
+                task = asyncio.create_task(
+                    process_example(example, session, args, args.output_file, pbar)
+                )
                 active_tasks.add(task)
                 task.add_done_callback(active_tasks.discard)
 

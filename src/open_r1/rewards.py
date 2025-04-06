@@ -2,8 +2,11 @@
 
 import asyncio
 import json
+import logging
 import math
+import os
 import re
+import subprocess
 from typing import Dict
 
 from latex2sympy2_extended import NormalizationConfig
@@ -213,7 +216,11 @@ def get_cosine_scaled_reward(
         rewards = []
 
         for content, sol in zip(contents, solution):
-            gold_parsed = parse(sol, extraction_mode="first_match", extraction_config=[LatexExtractionConfig()])
+            gold_parsed = parse(
+                sol,
+                extraction_mode="first_match",
+                extraction_config=[LatexExtractionConfig()],
+            )
             if len(gold_parsed) == 0:
                 rewards.append(1.0)  # Skip unparseable examples
                 print("Failed to parse gold solution: ", sol)
@@ -377,6 +384,92 @@ def code_reward(completions, **kwargs) -> list[float]:
         rewards = [0.0] * len(completions)
 
     return rewards
+
+
+def lean_reward(completions: list[str], prompt, **kwargs) -> list[float]:
+    """Reward function that evaluates Lean code snippets.
+    The code must contains import sentence and theorem sentence of the given prompt.
+    Moreover, the proof must be completed and end with `done`.
+    """
+    lean_codes = [_extract_lean_code(completion[0]["content"]) for completion in completions]
+    prompt_codes = [_extract_lean_code(prmt) for prmt in prompt]
+    results = []
+    for prompt_code, lean_code in zip(prompt_codes, lean_codes):
+        if prompt_code is None or lean_code is None or prompt_code not in lean_code:
+            results.append(0.0)
+            continue
+        try:
+            result = _validate_lean_code(lean_code)
+            results.append(result)
+        except ValueError:
+            results.append(0.0)
+    return results
+
+
+def _extract_lean_code(completion: str) -> str | None:
+    """Extract lean code from completion
+    Args:
+        completion (str): completion
+
+    Returns:
+        str | None: return lean code if exists, otherwise None
+    """
+    # 文字列中の```lean\nhogehoge\n```を抽出してhogehoge部分を返す
+    lean_code = completion.split("```lean")
+    if len(lean_code) < 2:
+        return None
+
+    code_parts = lean_code[1].split("```")
+    if not code_parts:
+        return None
+
+    return code_parts[0].strip()
+
+
+def _validate_lean_code(code: str) -> float:
+    """Validate lean code
+    The code must contains import sentence and theorem sentence.
+    Moreover, the proof must be completed and end with `done`.
+    Args:
+        code (str): lean code
+
+    Returns:
+        float: 1.0 if valid, 0.0 otherwise
+    """
+    # もしディレクトリやファイルがなければ作成する
+    if os.path.exists("./tmp") is False:
+        os.makedirs("./tmp")
+    with open("./tmp/Verify.lean", "w") as f:
+        f.write(code)
+
+    WORKDIR = "./repl"
+    RELATIVE_PATH_FROM_REPL = "../tmp/Verify.lean"
+    command = f'echo \'{{"path": "{RELATIVE_PATH_FROM_REPL}", "allTactics": true}}\' | ~/.elan/bin/lake exe repl'
+
+    try:
+        result = subprocess.run(
+            command, cwd=WORKDIR, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        logging.info(result)
+
+        if result.returncode != 0:
+            logging.error(f"Verification failed with return code {result.returncode}")
+            logging.error(f"Stderr: {result.stderr}")
+            return 0.0
+
+        result_json = json.loads(result.stdout)
+        if result_json["tactics"][-1]["goals"] == "no goals":
+            return 1.0
+
+        errors = list(filter(lambda x: x["severity"] == "error", result_json["messages"]))
+
+        if len(errors) == 0:
+            return 1.0
+
+        return 0.0
+    except Exception as e:
+        logging.exception(f"Error validating lean code: {e}")
+        return 0.0
 
 
 def get_code_format_reward(language: str = "python"):

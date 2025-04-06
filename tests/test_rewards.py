@@ -1,6 +1,6 @@
 import unittest
 
-from open_r1.rewards import (
+from open_r1.rewards import (  # lean_reward,
     accuracy_reward,
     format_reward,
     get_code_format_reward,
@@ -13,6 +13,38 @@ from open_r1.rewards import (
 
 
 class TestRewards(unittest.TestCase):
+    # def test_lean_reward(self):
+    #     completions = [
+    #         [
+    #             {
+    #                 "content": "The answer is: ```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n  done\n```"
+    #             }
+    #         ],
+    #         [
+    #             {
+    #                 "content": "Here is the answer: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  done\n```"
+    #             }
+    #         ],
+    #         [
+    #             {
+    #                 "content": "The answer is the following: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [fdjakfdaf]\n```"
+    #             }
+    #         ],
+    #         [
+    #             {
+    #                 "content": "theorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  rw [add_comm m k]\n  done\n"
+    #             }
+    #         ],
+    #     ]
+    #     prompt = [
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #         "```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by```",
+    #     ]
+    #     rewards = lean_reward(completions, prompt)
+    #     self.assertEqual(rewards, [1.0, 0.0, 0.0, 0.0])
+
     def test_accuracy_reward_correct_answer(self):
         """Test accuracy_reward with a correct answer."""
         completion = [[{"content": r"\boxed{\frac{63}{400}}"}]]
@@ -70,7 +102,10 @@ class TestRewards(unittest.TestCase):
 
     def test_multiple_completions(self):
         """Test handling multiple completions at once."""
-        completions = [[{"content": r"\boxed{\frac{63}{400}}"}], [{"content": r"\boxed{\frac{64}{400}}"}]]
+        completions = [
+            [{"content": r"\boxed{\frac{63}{400}}"}],
+            [{"content": r"\boxed{\frac{64}{400}}"}],
+        ]
         solutions = [r"\frac{63}{400}", r"\frac{63}{400}"]
 
         rewards = accuracy_reward(completions, solutions)
@@ -91,11 +126,31 @@ class TestRewards(unittest.TestCase):
 
         test_cases = [
             # Correct answers with different lengths
-            (r"\boxed{\frac{63}{400}}", r"\frac{63}{400}", 20, 0.943),  # Short correct answer
-            (r"\boxed{\frac{63}{400}}", r"\frac{63}{400}", 80, 0.547),  # Long correct answer
+            (
+                r"\boxed{\frac{63}{400}}",
+                r"\frac{63}{400}",
+                20,
+                0.943,
+            ),  # Short correct answer
+            (
+                r"\boxed{\frac{63}{400}}",
+                r"\frac{63}{400}",
+                80,
+                0.547,
+            ),  # Long correct answer
             # Wrong answers with different lengths
-            (r"\boxed{\frac{64}{400}}", r"\frac{63}{400}", 20, -0.942),  # Short wrong answer
-            (r"\boxed{\frac{64}{400}}", r"\frac{63}{400}", 80, -0.547),  # Long wrong answer
+            (
+                r"\boxed{\frac{64}{400}}",
+                r"\frac{63}{400}",
+                20,
+                -0.942,
+            ),  # Short wrong answer
+            (
+                r"\boxed{\frac{64}{400}}",
+                r"\frac{63}{400}",
+                80,
+                -0.547,
+            ),  # Long wrong answer
         ]
 
         for content, solution, content_len, expected_reward in test_cases:
@@ -115,7 +170,10 @@ class TestRewards(unittest.TestCase):
 
     def test_same_length_responses(self):
         """Test len_reward when all responses have the same length."""
-        completions = [[{"content": r"\boxed{\frac{63}{400}}"}], [{"content": r"\boxed{\frac{64}{400}}"}]]
+        completions = [
+            [{"content": r"\boxed{\frac{63}{400}}"}],
+            [{"content": r"\boxed{\frac{64}{400}}"}],
+        ]
         solutions = [r"\frac{63}{400}", r"\frac{63}{400}"]
 
         rewards = len_reward(completions, solutions)
@@ -175,7 +233,10 @@ class TestRewards(unittest.TestCase):
 
     def test_unparseable_solution(self):
         """Test len_reward with unparseable solution."""
-        completions = [[{"content": r"\boxed{answer}"}], [{"content": r"\boxed{answer} " + "x" * 10}]]
+        completions = [
+            [{"content": r"\boxed{answer}"}],
+            [{"content": r"\boxed{answer} " + "x" * 10}],
+        ]
         solutions = ["unparseable_latex", "unparseable_latex"]
 
         rewards = len_reward(completions, solutions)

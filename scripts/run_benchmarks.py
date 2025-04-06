@@ -25,12 +25,19 @@ class ScriptArguments:
         default="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
         metadata={"help": "The Hub model id to push the model to."},
     )
-    model_revision: str = field(default="main", metadata={"help": "The Hub model branch to push the model to."})
-    trust_remote_code: bool = field(default=False, metadata={"help": "Trust the remote code."})
-    benchmarks: List[str] = field(
-        default_factory=lambda: [], metadata={"help": "The benchmarks to run after training."}
+    model_revision: str = field(
+        default="main", metadata={"help": "The Hub model branch to push the model to."}
     )
-    list_benchmarks: bool = field(default=False, metadata={"help": "List all supported benchmarks."})
+    trust_remote_code: bool = field(
+        default=False, metadata={"help": "Trust the remote code."}
+    )
+    benchmarks: List[str] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The benchmarks to run after training."},
+    )
+    list_benchmarks: bool = field(
+        default=False, metadata={"help": "List all supported benchmarks."}
+    )
     system_prompt: Optional[str] = field(
         default=None, metadata={"help": "The system prompt to use for the benchmark."}
     )
@@ -53,7 +60,11 @@ def main():
     )
     run_benchmark_jobs(
         benchmark_args,
-        ModelConfig(model_name_or_path="", model_revision="", trust_remote_code=args.trust_remote_code),
+        ModelConfig(
+            model_name_or_path="",
+            model_revision="",
+            trust_remote_code=args.trust_remote_code,
+        ),
     )
 
 
