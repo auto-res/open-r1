@@ -20,7 +20,7 @@ jobs:
           submodules: recursive
       - name: Install dependencies (Lean toolchain)
         run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- --default-toolchain leanprover/lean4:4.17.0-rc1 -y
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- --default-toolchain leanprover/lean4:4.18.0-rc1 -y
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
       - name: Show versions
         run: |
