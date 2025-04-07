@@ -19,7 +19,7 @@ jobs:
         with:
           submodule: recursive
       - name: Install elan
-        uses: actions/setup-lean@v1
+        uses: Julian/setup-lean@v1
       - name: Setup Python environment
         uses: actions/setup-python@v5
         with:
