@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+
+  tests:
+    name: Run tests and quality checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodule: recursive
+      - name: Install elan
+        uses: actions/setup-lean@v1
+      - name: Setup Python environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10.10
+      - name: Build repl
+        run: |
+          cd repl/ && lake build
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[tests]"
+      - name: Run tests
+        run: |
+          make test
+
