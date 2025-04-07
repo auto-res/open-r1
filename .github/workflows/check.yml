@@ -18,8 +18,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Install elan
-        uses: Julian/setup-lean@v1
+      - name: Install dependencies (Lean toolchain)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- --default-toolchain leanprover/lean4:4.17.0-rc1 -y
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+      - name: Show versions
+        run: |
+          elan --version
+          lean --version
+          lake --version
       - name: Setup Python environment
         uses: actions/setup-python@v5
         with:
