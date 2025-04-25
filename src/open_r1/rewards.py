@@ -425,7 +425,7 @@ def _extract_lean_code(completion: str) -> str | None:
     if not code_parts:
         return None
 
-    return code_parts[0].strip()
+    return code_parts[0].strip()+"\n"
 
 
 def _validate_lean_code(code: str) -> float:
