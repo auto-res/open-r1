@@ -386,19 +386,21 @@ def code_reward(completions, **kwargs) -> list[float]:
     return rewards
 
 
-def lean_reward(completions: list[str], prompt, **kwargs) -> list[float]:
+def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
     """Reward function that evaluates Lean code snippets.
     The code must contains import sentence and theorem sentence of the given prompt.
     Moreover, the proof must be completed and end with `done`.
     """
     lean_codes = [_extract_lean_code(completion[0]["content"]) for completion in completions]
-    prompt_codes = [_extract_lean_code(prmt) for prmt in prompt]
+    prompt_codes = [_extract_lean_code(prmt) for prmt in problem]
     results = []
     for prompt_code, lean_code in zip(prompt_codes, lean_codes):
         if prompt_code is None or lean_code is None or prompt_code not in lean_code:
             results.append(0.0)
             continue
         try:
+            if not lean_code.endswith("done\n"):
+                lean_code += "  done\n"
             result = _validate_lean_code(lean_code)
             results.append(result)
         except ValueError:
