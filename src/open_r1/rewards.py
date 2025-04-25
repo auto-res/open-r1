@@ -391,17 +391,18 @@ def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
     The code must contains import sentence and theorem sentence of the given prompt.
     Moreover, the proof must be completed and end with `done`.
     """
-    lean_codes = [_extract_lean_code(completion[0]["content"]) for completion in completions]
-    prompt_codes = [_extract_lean_code(prmt) for prmt in problem]
+    ans_codes = [_extract_lean_code(completion[0]["content"]) for completion in completions]
+    prob_codes = [_extract_lean_code(prmt) for prmt in problem]
     results = []
-    for prompt_code, lean_code in zip(prompt_codes, lean_codes):
-        if prompt_code is None or lean_code is None or prompt_code not in lean_code:
+    for prob_code, ans_code in zip(prob_codes, ans_codes):
+        if prob_code is None or ans_code is None:
             results.append(0.0)
             continue
         try:
-            if not lean_code.endswith("done\n"):
-                lean_code += "  done\n"
-            result = _validate_lean_code(lean_code)
+            whole_code = prob_code + ans_code
+            if not whole_code.endswith("done\n"):
+                whole_code += "  done\n"
+            result = _validate_lean_code(whole_code)
             results.append(result)
         except ValueError:
             results.append(0.0)
@@ -416,16 +417,19 @@ def _extract_lean_code(completion: str) -> str | None:
     Returns:
         str | None: return lean code if exists, otherwise None
     """
-    # 文字列中の```lean\nhogehoge\n```を抽出してhogehoge部分を返す
-    lean_code = completion.split("```lean")
-    if len(lean_code) < 2:
-        return None
+    if "```lean"  in completion:
+        lean_code = completion.split("```lean")
+        if len(lean_code) < 2:
+            return None
 
-    code_parts = lean_code[1].split("```")
-    if not code_parts:
-        return None
+        code_parts = lean_code[1].split("```")
+        if not code_parts:
+            return None
+        code = code_parts[0]
+    else:
+        code = completion
 
-    return code_parts[0].strip()+"\n"
+    return code+"\n"
 
 
 def _validate_lean_code(code: str) -> float:
