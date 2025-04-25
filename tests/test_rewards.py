@@ -38,6 +38,11 @@ class TestRewards(unittest.TestCase):
             ],
             [
                 {
+                     "content": "by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n\ntheorem fuga (m : Nat): m + 5 = 2 + m + 3 := by sorry"
+                 }
+            ],
+            [
+                {
                      "content": "by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n"
                  }
             ],
@@ -67,6 +72,7 @@ class TestRewards(unittest.TestCase):
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by",
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) :=",
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) :=",
+            "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := ",
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by",
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by",
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by",
@@ -74,7 +80,7 @@ class TestRewards(unittest.TestCase):
             "open Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by",
         ]
         rewards = lean_reward(completions, prompt)
-        self.assertEqual(rewards, [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.assertEqual(rewards, [1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     def test_accuracy_reward_correct_answer(self):
         """Test accuracy_reward with a correct answer."""

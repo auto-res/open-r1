@@ -399,6 +399,8 @@ def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
             results.append(0.0)
             continue
         try:
+            if "\n\n" in ans_code:
+                ans_code = ans_code.split("\n\n")[0]+"\n"
             whole_code = prob_code + ans_code
             if not whole_code.endswith("done\n"):
                 whole_code += "  done\n"
