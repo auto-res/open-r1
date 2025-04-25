@@ -18,12 +18,12 @@ class TestRewards(unittest.TestCase):
         completions = [
             [
                 {
-                     "content": "The answer is: ```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n  done\n```"
+                     "content": "The answer is: ```lean\nopen Nat\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [Nat.add_assoc]\n  rw [Nat.add_comm m k]\n```"
                  }
             ],
             [
                 {
-                    "content": "Here is the answer: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  done\n```"
+                    "content": "Here is the answer: ```lean\ntheorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n```"
                 }
             ],
             [
@@ -33,7 +33,7 @@ class TestRewards(unittest.TestCase):
             ],
             [
                 {
-                    "content": "theorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  rw [add_comm m k]\n  done\n"
+                    "content": "theorem hoge (n m k : Nat) : n + m + k = n + (k + m) := by\n  rw [add_assoc]\n  rw [add_comm m k]\n"
                 }
             ],
         ]

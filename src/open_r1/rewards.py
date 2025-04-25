@@ -400,7 +400,7 @@ def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
             continue
         try:
             if not lean_code.endswith("done\n"):
-                lean_code += "  done\n"
+                lean_code += "\n  done\n"
             result = _validate_lean_code(lean_code)
             results.append(result)
         except ValueError:
