@@ -400,7 +400,7 @@ def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
             continue
         try:
             if not lean_code.endswith("done\n"):
-                lean_code += "\n  done\n"
+                lean_code += "  done\n"
             result = _validate_lean_code(lean_code)
             results.append(result)
         except ValueError:
@@ -425,7 +425,7 @@ def _extract_lean_code(completion: str) -> str | None:
     if not code_parts:
         return None
 
-    return code_parts[0].strip()
+    return code_parts[0].strip()+"\n"
 
 
 def _validate_lean_code(code: str) -> float:
