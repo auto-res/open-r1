@@ -7,6 +7,7 @@ import math
 import os
 import re
 import subprocess
+import uuid
 from typing import Dict
 
 from latex2sympy2_extended import NormalizationConfig
@@ -402,9 +403,11 @@ def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
             if "\n\n" in ans_code:
                 ans_code = ans_code.split("\n\n")[0]+"\n"
             whole_code = prob_code + ans_code
-            if not whole_code.endswith("done\n"):
-                whole_code += "  done\n"
+            #if not whole_code.endswith("done\n"):
+            #    whole_code += "  done\n"
             result = _validate_lean_code(whole_code)
+            if (result > 0.5):
+                logging.info(f"Lean code is correct: \n{whole_code}")
             results.append(result)
         except ValueError:
             results.append(0.0)
@@ -447,11 +450,16 @@ def _validate_lean_code(code: str) -> float:
     # もしディレクトリやファイルがなければ作成する
     if os.path.exists("./tmp") is False:
         os.makedirs("./tmp")
-    with open("./tmp/Verify.lean", "w") as f:
+    
+    # ランダムなファイル名を生成
+    random_filename = f"Verify_{uuid.uuid4().hex[:8]}.lean"
+    file_path = os.path.join("./tmp", random_filename)
+    
+    with open(file_path, "w") as f:
         f.write(code)
 
     WORKDIR = "./repl"
-    RELATIVE_PATH_FROM_REPL = "../tmp/Verify.lean"
+    RELATIVE_PATH_FROM_REPL = f"../tmp/{random_filename}"  # パスも更新
     command = f'echo \'{{"path": "{RELATIVE_PATH_FROM_REPL}", "allTactics": true}}\' | ~/.elan/bin/lake exe repl'
 
     try:
@@ -466,7 +474,11 @@ def _validate_lean_code(code: str) -> float:
             return 0.0
 
         result_json = json.loads(result.stdout)
-        if result_json["tactics"][-1]["goals"] == "no goals":
+        #if result_json["tactics"][-1]["goals"] != "no goals":
+        #    return 0.0
+        if "sorries" in result_json:
+            return 0.0
+        if "messages" not in result_json:
             return 1.0
 
         errors = list(filter(lambda x: x["severity"] == "error", result_json["messages"]))
@@ -478,6 +490,12 @@ def _validate_lean_code(code: str) -> float:
     except Exception as e:
         logging.exception(f"Error validating lean code: {e}")
         return 0.0
+    finally:
+        # 検証後にファイルを削除
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            logging.warning(f"Failed to remove temporary file {file_path}: {e}")
 
 
 def get_code_format_reward(language: str = "python"):
