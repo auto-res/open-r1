@@ -35,6 +35,9 @@ uv pip install setuptools && uv pip install flash-attn --no-build-isolation
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e ".[dev]"
 huggingface-cli login
 wandb login
+cd ./repl
+~/.elan/bin/lake exe cache get
+~/.elan/bin/lake build
 ```
 
 ## Develop reward functions
