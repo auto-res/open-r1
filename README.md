@@ -1,5 +1,11 @@
 
 ## Setup
+### Clone this repository and update submodules
+First, clone this repository and update submodule:
+```shell
+git clone https://github.com/auto-res/open-r1/develop
+git submodule update --init
+```
 ### Build the docker environment
 There are two ways to build the docker environment.
 #### 1. Build the docker environment with the following command
