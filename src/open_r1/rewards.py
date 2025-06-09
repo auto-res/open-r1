@@ -7,10 +7,8 @@ import math
 import os
 import re
 import subprocess
-import atexit
-import signal
+import uuid
 from typing import Dict
-import time
 
 from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
@@ -389,27 +387,25 @@ def code_reward(completions, **kwargs) -> list[float]:
     return rewards
 
 
-def lean_reward(completions: list[str], problem, headers = None, **kwargs) -> list[float]:
+def lean_reward(completions: list[str], problem, **kwargs) -> list[float]:
     """Reward function that evaluates Lean code snippets.
     The code must contains import sentence and theorem sentence of the given prompt.
     Moreover, the proof must be completed and end with `done`.
     """
     ans_codes = [_extract_lean_code(completion[0]["content"]) for completion in completions]
     prob_codes = [_extract_lean_code(prmt) for prmt in problem]
-    if headers is None:
-        headers = [None] * len(completions)
     results = []
-    for prob_code, ans_code, header in zip(prob_codes, ans_codes, headers):
+    for prob_code, ans_code in zip(prob_codes, ans_codes):
         if prob_code is None or ans_code is None:
             results.append(0.0)
             continue
         try:
-            if "\n\n" in ans_code:
-                ans_code = ans_code.split("\n\n")[0]+"\n"
+            if "```" in ans_code:
+                ans_code = ans_code.split("```")[0]+"\n"
             whole_code = prob_code + ans_code
             #if not whole_code.endswith("done\n"):
             #    whole_code += "  done\n"
-            result = _validate_lean_code(whole_code, header)
+            result = _validate_lean_code(whole_code)
             if (result > 0.5):
                 logging.info(f"Lean code is correct: \n{whole_code}")
             results.append(result)
@@ -441,28 +437,7 @@ def _extract_lean_code(completion: str) -> str | None:
     return code+"\n"
 
 
-def send_reql(proc, s : str, env = None, timeout = 600.):
-    req = {"cmd": s}
-    if env != None:
-        req.update({"env": env})
-    proc.stdin.write(json.dumps(req)+"\n\n")
-    output = ""
-    start_time = time.time()
-    while True:
-        if proc.poll() is not None:
-            logging.info(f"Lean process has termininated: input: {s}, output: {output}")
-            return None
-        if time.time() - start_time > timeout:
-            logging.info(f"Lean process timed out: input: {s}, output: {output}")
-            return None
-        output += proc.stdout.readline()
-        try:
-            data = json.loads(output)
-            return data
-        except json.JSONDecodeError:
-            continue
-
-def _validate_lean_code(code: str, header: str = None) -> float:
+def _validate_lean_code(code: str) -> float:
     """Validate lean code
     The code must contains import sentence and theorem sentence.
     Moreover, the proof must be completed and end with `done`.
@@ -472,49 +447,35 @@ def _validate_lean_code(code: str, header: str = None) -> float:
     Returns:
         float: 1.0 if valid, 0.0 otherwise
     """
+    # もしディレクトリやファイルがなければ作成する
+    if os.path.exists("./tmp") is False:
+        os.makedirs("./tmp")
+    
+    # ランダムなファイル名を生成
+    random_filename = f"Verify_{uuid.uuid4().hex[:8]}.lean"
+    file_path = os.path.join("./tmp", random_filename)
+    
+    with open(file_path, "w") as f:
+        f.write(code)
 
     WORKDIR = "./repl"
+    RELATIVE_PATH_FROM_REPL = f"../tmp/{random_filename}"  # パスも更新
+    command = f'echo \'{{"path": "{RELATIVE_PATH_FROM_REPL}", "allTactics": true}}\' | ~/.elan/bin/lake exe repl'
 
-    if not hasattr(_validate_lean_code, "proc") or _validate_lean_code.proc.poll() is not None:
-        _validate_lean_code.proc = subprocess.Popen(
-            '~/.elan/bin/lake exe repl',
-            cwd=WORKDIR,
-            shell=True,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            encoding="utf-8",
-            bufsize=1,
-        )
-        def cleanup():
-            try:
-                os.killpg(_validate_lean_code.proc.pid, signal.SIGTERM)
-            except:
-                pass
-        atexit.register(cleanup)
-        _validate_lean_code.header = header
-        if header is not None:
-            result_json = send_reql(_validate_lean_code.proc, header, None)
-            assert result_json is not None
-            _validate_lean_code.env = result_json["env"]
-        else:
-            _validate_lean_code.env = None
-        logging.info(f"Started lean process: {_validate_lean_code.proc.pid}")
-    else:
-        assert _validate_lean_code.header == header
     try:
-        if header is not None:
-            code = code[len(header):]
-        result_json = send_reql(_validate_lean_code.proc, code, _validate_lean_code.env)
-        logging.info(result_json)
-        if result_json is None:
-            try:
-                os.killpg(_validate_lean_code.proc.pid, signal.SIGTERM)
-            except:
-                pass
+        result = subprocess.run(
+            command, cwd=WORKDIR, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        logging.info(result)
+
+        if result.returncode != 0:
+            logging.error(f"Verification failed with return code {result.returncode}")
+            logging.error(f"Stderr: {result.stderr}")
             return 0.0
 
+        result_json = json.loads(result.stdout)
+        #if result_json["tactics"][-1]["goals"] != "no goals":
+        #    return 0.0
         if "sorries" in result_json:
             return 0.0
         if "messages" not in result_json:
@@ -522,13 +483,23 @@ def _validate_lean_code(code: str, header: str = None) -> float:
 
         errors = list(filter(lambda x: x["severity"] == "error", result_json["messages"]))
 
-        if len(errors) == 0:
-            return 1.0
-
-        return 0.0
+        if len(errors) > 0:
+            return 0.0
+        
+        for message in result_json["messages"]:
+            if message["data"] == "declaration uses \'sorry\'":
+                return 0.0
+        
+        return 1.0
     except Exception as e:
         logging.exception(f"Error validating lean code: {e}")
         return 0.0
+    finally:
+        # 検証後にファイルを削除
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            logging.warning(f"Failed to remove temporary file {file_path}: {e}")
 
 
 def get_code_format_reward(language: str = "python"):
