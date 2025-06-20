@@ -3,9 +3,6 @@
 ### Clone this repository and update submodules
 First, clone this repository, switch to develop branch and update submodule:
 ```shell
-git clone git@github.com:auto-res/open-r1.git
-git fetch origin
-git switch develop
 git submodule update --init
 ```
 ### Build the docker environment
